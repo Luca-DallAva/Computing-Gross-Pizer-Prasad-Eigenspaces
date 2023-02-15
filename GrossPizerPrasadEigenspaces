@@ -1,8 +1,12 @@
 /* Procedure for computing the decomposition of the two-dimensional Hecke-eigenspaces associated with a l-twist-minimal cuspidal form of level N*l^2.
 Input:  N := level of the Eichler order, (N,l)=1.
         l := discriminant of the quaternion algebra over Q. The order we compute has level N*l^2.
-        p1,p2,p3 := primes at which compute the Hecke operators in the form of Brandt matrices.
-        a1,a2,a3 := eigenvalues at the above primes, corresponding to a modular form of level N*l^2.
+        mod_forms_list := a list of new modular forms of level N*l^2, weight 2 and trivial character.
+        
+Example: 
+        GrossPizerPrasadEigenspaces(1,7,Newforms("49k2"));
+        GrossPizerPrasadEigenspaces(3,5,Newforms("75k2"));
+        GrossPizerPrasadEigenspaces(37,3,Newforms("333k2"));
 */
 
 procedure GrossPizerPrasadEigenspaces(N,l,mod_forms_list)
@@ -133,35 +137,38 @@ sturm_bound := Ceiling((2*N*l^2*NN)/12);
 
 for f in mod_forms_list do
     print("------------Modular-form----------------------");
-    print(qExpansion(f[1]));
+    ff:=f[1];
+    print(qExpansion(ff));
     // Add error if not newform
     V:=Nullspace(ScalarMatrix(d,0));
     nn:=0;
-    FLAG2:=true;
-    while FLAG2 do
-        nn:=nn+1;
-        pp := NthPrime(nn);
-        if ((N*l mod pp) ne 0) then
-            if (pp le sturm_bound) then
-                Tp := HeckeOperator(M, pp);
-                ap := Coefficient(f[1], pp);
-                if V eq Nullspace(ScalarMatrix(d,0)) then
-                    V:= Eigenspace(Tp,ap);
+    if (Type(BaseRing(ff)) eq Type(IntegerRing())) then
+        FLAG2:=true;
+        while FLAG2 do
+            nn:=nn+1;
+            pp := NthPrime(nn);
+            if ((N*l mod pp) ne 0) then
+                if (pp le sturm_bound) then
+                    Tp := HeckeOperator(M, pp);
+                    ap := Coefficient(ff, pp);
+                    if V eq Nullspace(ScalarMatrix(d,0)) then
+                        V:= Eigenspace(Tp,ap);
+                    else
+                        V meet:= Eigenspace(Tp,ap);
+                    end if;
                 else
-                    V meet:= Eigenspace(Tp,ap);
+                    FLAG2:=false;
                 end if;
-            else
-                FLAG2:=false;
             end if;
-        end if;
-    end while;
-    print("------------Vectors-and-action-of-Matrix------");
-    for gen in Generators(V) do
-        [gen,gen*Transpose(Perm_Matrix)];
-    end for;
+        end while;
+        print("------------Vectors-and-action-of-Matrix------");
+        for gen in Generators(V) do
+            [gen,gen*Transpose(Perm_Matrix)];
+        end for;
+    else
+        print("----------------------");
+        print("Field of definition is not Q.");
+    end if;
 end for;
 print("----------------------------------------------");
 end procedure;
-
-
-// Example: GrossPizerPrasadEigenspaces(3,5,Newforms("75k2"));
