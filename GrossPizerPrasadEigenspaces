@@ -2,6 +2,11 @@
 Input:  N := level of the Eichler order, (N,l)=1.
         l := discriminant of the quaternion algebra over Q. The order we compute has level N*l^2.
         mod_forms_list := a list of new modular forms of level N*l^2, weight 2 and trivial character.
+        
+Example: 
+        GrossPizerPrasadEigenspaces(1,7,Newforms("49k2"));
+        GrossPizerPrasadEigenspaces(3,5,Newforms("75k2"));
+        GrossPizerPrasadEigenspaces(37,3,Newforms("333k2"));
 */
 
 procedure GrossPizerPrasadEigenspaces(N,l,mod_forms_list)
@@ -167,7 +172,3 @@ for f in mod_forms_list do
 end for;
 print("----------------------------------------------");
 end procedure;
-
-
-// Example: GrossPizerPrasadEigenspaces(1,7,Newforms("49k2"));
-// Example: GrossPizerPrasadEigenspaces(3,5,Newforms("75k2"));
