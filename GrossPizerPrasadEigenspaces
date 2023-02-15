@@ -1,0 +1,137 @@
+/* Procedure for computing the decomposition of the two-dimensional Hecke-eigenspaces associated with a l-twist-minimal cuspidal form of level N*l^2.
+Input:  N := level of the Eichler order, (N,l)=1.
+        l := discriminant of the quaternion algebra over Q. The order we compute has level N*l^2.
+        p1,p2,p3 := primes at which compute the Hecke operators in the form of Brandt matrices.
+        a1,a2,a3 := eigenvalues at the above primes, corresponding to a modular form of level N*l^2.
+*/
+
+procedure GrossPizerPrasadEigenspaces(N,l,p1,p2,p3,a1,a2,a3)
+
+flag := false;
+q := 1;
+s := 0;
+
+if ((l mod 4) eq (3 mod 4)) then
+    a:=-1;
+    b:=-l;
+    B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+    S := [1/2+1/2*j,l/2*i+1/2*k,j,k];
+    pi := j;
+elif ((l mod 8) eq (5 mod 8)) then
+    a:=-2;
+    b:=-l;
+    B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+    S := [1/2+1/2*j+1/2*k,l/4*i+1/2*j+1/4*k,j,k];
+    pi := j;
+else
+    for n in [2..10+l] do
+        q := NthPrime(n);
+        if (KroneckerSymbol(l, q) eq -1) and ((q mod 4) eq (3 mod 4)) then
+            for sindex in [1..q] do
+                if ((sindex^2 mod q) eq (-l mod q)) and ((sindex mod l) eq (-q mod l)) then
+                    flag := true;
+                    s := sindex;
+                    break n;
+                end if;
+            end for;
+        end if;
+    end for;
+    if flag then
+        a:=-l;
+        b:=-q;
+        B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+        S := [1/2+l/2*j,1/2*i+1/2*k,k,l/q*j+s/q*k];
+        pi := i;
+    else
+        print("Increase bound!");
+    end if;
+end if;
+
+O_S := QuaternionOrder(S);
+O_max := MaximalOrder(O_S); // Max order containing O_S.
+
+m:=0;
+while true do
+    m:=m+1;
+    FLAG1 := true;
+    O_E := Order(O_max, N*l); //It seems to work better in this situation. I believe it depends on the conjugacy class of the order.
+    O := O_E meet O_S;
+
+    left_ideal_classes := LeftIdealClasses(O);
+    d:=#left_ideal_classes;
+    Perm_Matrix := ScalarMatrix(d,0);
+    
+    index_I:=0;
+
+    for I in left_ideal_classes do
+        index_I:=index_I+1;
+        JI:=lideal<O| pi*Generators(I)[1], pi*Generators(I)[2], pi*Generators(I)[3], pi*Generators(I)[4]>;
+        //print(Generators(I));
+        //print(Generators(JI));
+        //print(Generators(LeftOrder(I)));
+        //print(Generators(LeftOrder(JI)));
+        index_L:=0;
+        for L in left_ideal_classes do
+            index_L:=index_L+1;
+            if (LeftOrder(L) ne LeftOrder(JI)) then
+                FLAG1 := false;
+                break I;
+            end if;
+            //print("---");
+            if IsLeftIsomorphic(L,JI) then
+                Perm_Matrix[index_I,index_L]:=1;
+            end if;
+        end for;
+    end for;
+    if FLAG1 then
+        break;
+    end if;
+    delete left_ideal_classes;
+    if m eq 10000 then
+        print("10000 iterations!");
+        break;
+    end if;
+end while;
+
+//Print Statements
+
+M:=BrandtModule(O);
+
+print("------------Quaternion-Algebra-and-Order------");
+print(B);
+print(Discriminant(B));
+print("----------------------------------------------");
+print(O);
+print(Generators(O));
+print(Discriminant(O));
+print("----------------------------------------------");
+print(M);
+
+print("------------Permutation-Matrix----------------");
+print(Perm_Matrix);
+print("----------------------------------------------");
+
+//Control!
+
+if Perm_Matrix^2 eq ScalarMatrix(d,1) then
+    print("Squared is identity.");
+else
+    print("Squared is not identity! PROBLEM!");
+end if;
+
+//Eigenspaces
+
+H1:=HeckeOperator(M, p1);
+H2:=HeckeOperator(M, p2);
+H3:=HeckeOperator(M, p3);
+V:=Eigenspace(H1,a1) meet Eigenspace(H2,a2);
+V meet:= Eigenspace(H3,a3);
+
+print("------------Vectors-and-action-of-Matrix------");
+for gen in Generators(V) do
+    [gen,gen*Transpose(Perm_Matrix)];
+end for;
+print("----------------------------------------------");
+
+end procedure;
+
