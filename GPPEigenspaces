@@ -99,10 +99,12 @@ for I in left_ideal_classes do
     end for;
 end for;
 
+M:=BrandtModule(O);
+
 //Print Statements
 
 if print_statements then
-    M:=BrandtModule(O);
+    
     print("------------Quaternion-Algebra-and-Order------");
     print(B);
     print(Discriminant(B));
