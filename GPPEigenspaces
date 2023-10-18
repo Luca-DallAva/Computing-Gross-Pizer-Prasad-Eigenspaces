@@ -1,0 +1,233 @@
+/* Function for computing the decomposition of the two-dimensional Hecke-eigenspaces associated with a l-twist-minimal cuspidal form of level N*l^2.
+Input:  
+    Variables:
+        N := level of the Eichler order, (N,l)=1.
+        l := discriminant of the quaternion algebra over Q. The order we compute has level N*l^2.
+        mod_forms_list := list of modular forms at which we test the operator U_{\varpi_\ell}.
+    Parameters:
+        O := fixed order, false by default.
+        pi := fixed uniformizer, false by default.
+        ideal_classes := given ideal classe of O. Sometimes it is important to keep track of the ordering of the classes. False by dafault. 
+        print_statements := determines if the statements are also printed in the console, false by default.
+*/
+
+GPPEigenspaces := function(N,l,mod_forms_list : O := false, pi := false, print_statements:=false, ideal_classes:=false)
+
+if ((Type(O) eq AlgQuatOrd) and (Type(pi) eq AlgQuatElt)) then
+
+    if not(pi in O) then /* we must ensure that pi belongs to the order we are workling with*/
+        print("Error: The chosen uniformizer is not in the provided order.");
+        return false;
+    end if;
+
+else
+
+    flag := false;
+    q := 1;
+    s := 0;
+    
+                /* Here we fix a uniformizer pi for a quadratic extension of Q_l. The choice here is pi^2=-l. (One can extend the code, considering pi:=Enumerate(Order,l,l) */
+    
+    if ((l mod 4) eq (3 mod 4)) then            
+        a:=-1;
+        b:=-l;
+        B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+        S := [1/2+1/2*j,l/2*i+1/2*k,j,k];
+        pi := j;
+    elif ((l mod 8) eq (5 mod 8)) then
+        a:=-2;
+        b:=-l;
+        B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+        S := [1/2+1/2*j+1/2*k,l/4*i+1/2*j+1/4*k,j,k];
+        pi := j;
+    else
+        for n in [2..10+l] do
+            q := NthPrime(n);
+            if (KroneckerSymbol(l, q) eq -1) and ((q mod 4) eq (3 mod 4)) then
+                for sindex in [1..q] do
+                    if ((sindex^2 mod q) eq (-l mod q)) and ((sindex mod l) eq (-q mod l)) then
+                        flag := true;
+                        s := sindex;
+                        break n;
+                    end if;
+                end for;
+            end if;
+        end for;
+        if flag then
+            a:=-l;
+            b:=-q;
+            B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+            S := [1/2+l/2*j,1/2*i+1/2*k,k,l/q*j+s/q*k];
+            pi := i;
+        else
+            print("Increase bound!");
+        end if;
+    end if;
+    
+    O_S := QuaternionOrder(S);
+    O_max := MaximalOrder(O_S); // Max order containing O_S.
+    
+    
+    O_E := Order(O_max, N*l);
+    O := O_E meet O_S;
+    
+    if not(pi in O) then /* we must ensure that pi belongs to the order we are workling with*/
+        pi:=Enumerate(O, l, l)[1];
+    end if;
+end if;
+
+if (Type(ideal_classes) eq SeqEnum) then
+    left_ideal_classes := ideal_classes;
+else
+    left_ideal_classes := LeftIdealClasses(O);
+end if;
+
+d:=#left_ideal_classes;
+Perm_Matrix := ScalarMatrix(d,0);
+
+index_I:=0;
+
+for I in left_ideal_classes do
+    index_I:=index_I+1;
+    JI:=lideal<O| pi*Generators(I)[1], pi*Generators(I)[2], pi*Generators(I)[3], pi*Generators(I)[4]>;
+    index_L:=0;
+    for L in left_ideal_classes do
+        index_L:=index_L+1;
+        if IsLeftIsomorphic(L,JI) then
+            Perm_Matrix[index_I,index_L]:=1;
+        end if;
+    end for;
+end for;
+
+//Print Statements
+
+if print_statements then
+    M:=BrandtModule(O);
+    print("------------Quaternion-Algebra-and-Order------");
+    print(B);
+    print(Discriminant(B));
+    print("----------------------------------------------");
+    print(O);
+    print(Generators(O));
+    print(Discriminant(O));
+    print("----------------------------------------------");
+    print(M);
+    
+    print("------------Permutation-Matrix----------------");
+    print(Perm_Matrix);
+    print("----------------------------------------------");
+end if;
+
+//Control!
+
+if Perm_Matrix^2 eq ScalarMatrix(d,1) then
+    //print("Squared is identity.");
+else
+    print("Error: the obtained operator is not an involution.");
+    return 0;
+end if;
+
+//Eigenspaces
+
+NN := 1;
+for mm in PrimeDivisors(N*l) do
+    NN := NN*(1+1/mm);
+end for;
+
+sturm_bound := Ceiling((2*N*l^2*NN)/12);
+
+
+for f in mod_forms_list do
+    if print_statements then
+        print("------------Modular-form----------------------");
+        print(qExpansion(f[1]));
+        // Add error if not newform
+    end if;
+    V:=Nullspace(ScalarMatrix(d,0));
+    nn:=0;
+    FLAG2:=true;
+    while FLAG2 do
+        nn:=nn+1;
+        pp := NthPrime(nn);
+        if ((N*l mod pp) ne 0) then
+            if (pp le sturm_bound) then
+                Tp := HeckeOperator(M, pp);
+                ap := Coefficient(f[1], pp);
+                if V eq Nullspace(ScalarMatrix(d,0)) then
+                    V:= Eigenspace(Tp,ap);
+                else
+                    V meet:= Eigenspace(Tp,ap);
+                end if;
+            else
+                FLAG2:=false;
+            end if;
+        end if;
+    end while;
+
+    if print_statements then
+        print("------------Vectors-and-action-of-Matrix------");
+        vect := [];
+        for gen in Generators(V) do
+            gen_act:=gen*Transpose(Perm_Matrix);
+            vect cat:= [[gen,gen_act]];
+            print([gen,gen_act]);
+        end for;
+    else
+        vect := [];
+        for gen in Generators(V) do
+           vect cat:= [[gen,gen*Transpose(Perm_Matrix)]];
+        end for;
+    end if;
+end for;
+
+if print_statements then
+    print("----------------------------------------------");
+end if;
+
+return(vect);
+
+end function;
+
+/* EXAMPLES:
+
+l:=5;
+a:=-2;
+b:=-l;
+B<i,j,k> := QuaternionAlgebra< RationalField() | a, b >;
+//S := [1/2+1/2*j+1/2*k,l/4*i+1/2*j+1/4*k,j,k];
+
+OO:=QuaternionOrder([1, -3/2 - 5/2*i + 1/2*j + k, -1/2 - 1/2*j + 1/2*k, -3/2 - 15/4*i + 3/4*k]);
+
+ideals:=LeftIdealClasses(OO);
+
+print(GPPEigenspaces(3,5,Newforms("75k2") : O:=OO, pi:=j, ideal_classes:=ideals));
+
+print(GPPEigenspaces(3,5,Newforms("75k2") : O:=OO, pi:=Enumerate(OO, l, l)[1]);
+
+print(GPPEigenspaces(3,5,Newforms("75k2")));
+
+-------
+Error: The chosen uniformizer is not in the provided order.
+false
+[
+    [
+        ( 0  1 -1  0  0 -1  1  0),
+        ( 0 -1  1  0  0  1 -1  0)
+    ],
+    [
+        ( 1  0 -1  0 -1  0  1  0),
+        ( 1 -1  0  0 -1  1  0  0)
+    ]
+]
+[
+    [
+        ( 0  1 -1  0  0 -1  1  0),
+        (-1  1  0  0  1 -1  0  0)
+    ],
+    [
+        ( 1  0 -1  0 -1  0  1  0),
+        (-1  0  1  0  1  0 -1  0)
+    ]
+]
+
+*/
